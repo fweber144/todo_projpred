@@ -1,0 +1,227 @@
+---
+title: "To-do list for **projpred**"
+output: html_document
+---
+
+* See the issues on the [GitHub issue tracker](https://github.com/stan-dev/projpred/issues).
+* See `TODO`s in the code.
+* From time to time: Search for `do.call` to check whether we might have costly calls of it (i.e., `do.call()` calls with arguments that consist of large objects, e.g., `stanreg`s or `brmsfit`s). In such cases, we should use direct functions calls where possible and otherwise `projpred:::do_call()`. This should speed up the corresponding code. Note that `do_call()` seems to provide a speed-up in case of a few large arguments, but should not be used in case of a large number of arguments (see `?brms::do_call`).
+* Each time a new **lme4** version is out on CRAN, we need to diff **lme4** functions `mkNewReTrms()` and related functions (`predict.merMod()`, for example) between the former **lme4** version and the updated one. If there are changes, we might have to update `repair_re()` correspondingly.
+    
+    &rarr; Last check (November 6, 2023): Everything OK for **lme4** v1.1-35.1.
+* If, in the future, we have vignettes which take a long time to run, a possible solution is to only show them on the **pkgdown** website (<https://mc-stan.org/projpred>).
+* In a future release, complete the following deprecations:
+    + Remove the part "NOTE: In projpred 2.7.0, the default search method [...]" from the package startup message in `.onAttach()`.
+    + Remove `cvfolds()`.
+    + Remove argument `solution_terms` of `project()`.
+    + Remove `solution_terms()`.
+    + Remove the possibility that the `list` passed to argument `cvfits` of `init_refmodel()` may have a sub-`list` called `fits` containing the reference model fits that should be moved one level up (see PR [#456](https://github.com/stan-dev/projpred/pull/456)).
+    + **brms**: Remove the deprecated argument `newdata` of `get_refmodel.brmsfit()`.
+    + `as.matrix.projection()`: Remove the possibility of `nm_scheme = "auto"`.
+* In `plot.vsel()`, try to put the submodel sizes just above the x-axis or on a secondary x-axis shown at the top of the plot (the predictor names, however, should still be shown at the bottom, i.e., on the primary x-axis). This might make it possible to use `text_angle = 90` in case of small plot dimensions (where `text_angle = 90` would lead to overplotting of the x-axis tick labels). In such cases, `text_angle = NULL` and `ranking_abbreviate = TRUE` might help as well; the abbreviation could be further refined via argument `ranking_abbreviate_args` (and a table of the abbreviations could be created via output attribute `projpred_ranking_abbreviated`). Another possibility how `text_angle = 90` could work better might be to remove the `\n` newline in the x-axis tick labels, put the submodel size after the name of the predictor term (separated, e.g., by `:` if that does not lead to confusion with interaction terms, otherwise put the submodel size in parentheses), and then right-align.
+* Rename columns `"lower"` and `"upper"` of `summary.vsel()` output to `"q[...]"` and `"q[...]"` where `[...]` refers to the probability corresponding to the lower and upper confidence interval bound, respectively.
+* Round printed predictive performance results (i.e., the printed table `perf_sub` and the printed vector `perf_ref` in `print.vselsummary()`/`print.vsel()` output) in a `stat`- and `type`-specific way.
+* `plot.vsel()`: If `deltas = FALSE`, visualize the uncertainty in the reference model's predictive performance, as done in the Python package **kulprit** (see [here](https://kulprit.readthedocs.io/en/latest/), [here](https://github.com/bambinos/kulprit), and pull request [bambinos/kulprit#47](https://github.com/bambinos/kulprit/pull/47)).
+* GitHub pages: Add new item "Applications" to navigation bar and collect applications of **projpred** there (see appendix "Applications of projection predictive inference" in [McLatchie et al. (2023)](https://doi.org/10.48550/arXiv.2306.15581) for a starting point).
+* Add a function implementing a nested CV so that the selection of the submodel size is validated as well, at least when using `suggest_size()`. (Even though in general, users do not rely solely on `suggest_size()` to select a submodel size, they could use such a `suggest_size()`-based nested CV to get a sense of the overfitting induced by the selection of the size, i.e., the amount of over-optimism in the predictive performance estimates.)
+    
+    More precisely, what is meant by this nested CV is the implementation of a new function that runs a double CV (i.e., with a second---"outer"---CV layer around the currently existing first---"inner"---CV layer) and uses `suggest_size()` in the outer layer to pick a size based on the CV performance estimates from the inner layer.
+    
+    Even more precisely, after having picked a size `j` based on the training data of a given fold from the outer layer (using `suggest_size()`), we evaluate the performance of the specific submodel corresponding to that size `j` (this specific submodel consists of the first `j` terms of the training-data-based predictor ranking of that outer fold) on the test data of that outer fold, storing these test-data performance results observation-wise (i.e., not aggregating across the test observations). After having finished this double CV process, we can assemble the observation-wise performance results from the outer layer and compute the ELPD, for example. This ELPD (`ELPD_fully_validated`, say) is then fully validated because it is also validated for the size selection. It can then be compared to the ELPD (`ELPD_current`, say) that we can currently obtain by applying `suggest_size()` to `cv_varsel()` output and extracting from the same `cv_varsel()` output (via `summary.vsel()`) the ELPD corresponding to the suggested size. (So `ELPD_current` is not validated for the size selection.) Since we have---at least internally---the performance results stored in an observation-wise manner (for both, `ELPD_fully_validated` and `ELPD_current`), we can also compute the SD or SE for the difference of these two ELPD values.
+* Latent projection: Add response-scale support for the `brms::weibull()` family. In general, survival analysis (i.e., time-to-event) models would require to take the censoring (or event) indicators into account, but that could be avoided with the help of pseudo-observations (see Orsini, L. , Brard, C., Lesaffre, E., Dejardin, D. & Le Teuff, G., 2023, "Bayesian survival analysis using pseudo-observations", IWSM 2023 Proceedings Book, <https://iwsm2023.statistik.tu-dortmund.de/storages/iwsm2023-statistik/r/dokumente/IWSM_2023_Conference_Proceedings.pdf>).
+    
+    When adding latent-projection support for more families: Don't forget to mention them in `projpred-package.R`, the `projpred.Rmd` vignette, and `NEWS.md`. Also add unit tests for those new families. Also consider adapting the `latent.Rmd` vignette.
+* For the new thresholding rule "ELPD difference > -4" (more generally, for argument `thres_elpd` which occurs at different places throughout the **projpred** codebase; see PR [#335](https://github.com/stan-dev/projpred/pull/335)):
+    + Add unit tests for this new argument `thres_elpd`.
+    + Try out this new argument `thres_elpd` with simulation code from Pavone et al. (2022, "Using reference models in variable selection", DOI: [10.1007/s00180-022-01231-6](https://doi.org/10.1007/s00180-022-01231-6)) (the simulation code is available [here](https://github.com/fpavone/ref-approach-paper)).
+    + Would it make sense to take `log(0.95) * n_obs` instead of `-4` as the typical ELPD difference threshold (with `n_obs` denoting the number of observations), so a fixed (i.e., `n_obs`-independent) threshold on MLPD and GMPD scale instead of a fixed threshold on ELPD scale?
+* Make a quick test with the data from [this article](https://doi.org/10.1016/j.ijheh.2023.114116) (data available upon request), then create a case study, and finally consider it for inclusion in paper(s).
+* Implement the exact projection for the negative binomial response family, see GitHub issue [#361](https://github.com/stan-dev/projpred/issues/361). In principle, other discrete exponential dispersion (DED) families could perhaps be implemented analogously, but at the moment, other DED families are probably not common enough to require an exact implementation in **projpred**.
+* In the vignettes, always mention which parameters are projected. This is especially important in case of the latent projection: For example, if the original family is the `brms::cumulative()` family or if the original reference model is a `rstanarm::stan_polr()` fit, then the latent thresholds are not projected (instead, we take their draws from the reference model when performing post-projection response-scale analyses).
+* Currently, `brms:::get_refmodel.brmsfit()` ignores `wrhs` and `orhs` in the `extract_model_data` function (more precisely, in `brms:::.extract_model_data()`). This is probably OK because this makes `brms:::.extract_model_data()` follow the **brms** style of handling observation weights and offsets for predictions and also because it is documented in `brms:::get_refmodel.brmsfit()`, but for consistency with **rstanarm**, it might be better to not ignore `wrhs` and `orhs`. When fixing this, don't forget about the binomial family with > 1 trial per observation (for example:
+    ```{r, eval=FALSE}
+    data(bball1970, package = "rstanarm")
+    bball1970$AB_new <- bball1970$AB + 1L
+    ### rstanarm reference model fit:
+    # rfit <- rstanarm::stan_glm(
+    #   cbind(Hits, AB - Hits) ~ 1, family = binomial(), data = bball1970,
+    #   chains = 1, iter = 500, seed = 2351, refresh = 0
+    # )
+    ###
+    ### brms reference model fit:
+    rfit <- brms::brm(
+      Hits | trials(AB) ~ 1, family = binomial(), data = bball1970,
+      chains = 1, iter = 500, seed = 2351, refresh = 0
+    )
+    ###
+    library(projpred)
+    prj <- project(rfit, predictor_terms = character(), nclusters = 2,
+                   seed = 457)
+    pl <- proj_linpred(prj, allow_nonconst_wdraws_prj = TRUE)
+    pl_new <- proj_linpred(prj, weightsnew = ~ AB_new,
+                           allow_nonconst_wdraws_prj = TRUE)
+    identical(pl, pl_new)
+    ## --> Gives `TRUE` for the brms reference model, but `FALSE` for the
+    ## rstanarm reference model.
+    ```
+    ). The following example might also be helpful:
+    ```{r, eval=FALSE}
+    data("df_gaussian", package = "projpred")
+    df_gaussian_new <- df_gaussian[30:33, ]
+    dat_new <- data.frame(y = df_gaussian_new$y, df_gaussian_new$x)
+    dat_new$new_wcol <- rep_len(6:5, nrow(dat_new))
+    dat_new$new_ocol <- dat_new$X6
+    df_gaussian <- df_gaussian[1:29, ]
+    dat <- data.frame(y = df_gaussian$y, df_gaussian$x)
+    dat$wcol <- rep_len(4:1, nrow(dat))
+    dat$ocol <- dat$X6
+    ### rstanarm reference model fit:
+    rfit <- rstanarm::stan_glm(
+      y ~ X1 + X2 + X3 + X4 + X5, offset = ocol, weights = wcol, data = dat,
+      chains = 1, iter = 500, seed = 11403, refresh = 0
+    )
+    ###
+    ### brms reference model fit:
+    # rfit <- brms::brm(
+    #   y | weights(wcol) ~ X1 + X2 + X3 + X4 + X5 + offset(ocol), data = dat,
+    #   chains = 1, iter = 500, seed = 11403, refresh = 0
+    # )
+    ###
+    devtools::load_all()
+    prj <- project(rfit, predictor_terms = paste0("X", 5:2), nclusters = 2,
+                   verbose = FALSE, seed = 4678)
+    # debug(proj_linpred_aux)
+    # debug(brms:::.extract_model_data)
+    pl <- proj_linpred(prj,
+                       allow_nonconst_wdraws_prj = TRUE)
+    pln <- proj_linpred(prj,
+                        newdata = dat_new,
+                        allow_nonconst_wdraws_prj = TRUE)
+    pln_vec <- proj_linpred(prj,
+                            newdata = dat_new,
+                            weightsnew = dat_new$new_wcol,
+                            offsetnew = dat_new$new_ocol,
+                            allow_nonconst_wdraws_prj = TRUE)
+    pln_fml <- proj_linpred(prj,
+                            newdata = dat_new,
+                            weightsnew = ~ new_wcol,
+                            offsetnew = ~ new_ocol,
+                            allow_nonconst_wdraws_prj = TRUE)
+    ```
+* Fix subsampled PSIS-LOO CV, see issue [#94](https://github.com/stan-dev/projpred/issues/94). Note that there is [this comment](https://github.com/stan-dev/projpred/blob/7e67eed52cd307954f47cea939a6a595b07e1bfb/R/cv_varsel.R#L789-L793) which gives a hint that **projpred** might want to use the approach by Magnusson et al. (2019). However, for this approach, we might have to implement the following (note that the following list might not be exhaustive and might be even incorrect, as it was written some time ago):
+    1. In `loo_subsample_pps()`: definition of `wcv` via the logarithms of the predictive densities (not via the predictive densities themselves);
+    1. In `loo_subsample_pps()`: sampling *with* replacement;
+    1. In aggregations across the observations: `1 / wcv` instead of `wcv`;
+    1. In aggregations across the observations: usage of the special variance estimator;
+    1. **projpred** probably has to use the HH estimator every time it aggregates over the subsampled PSIS-LOO CV folds (i.e., also in `cv_proportions.ranking()`, for example). And where the SE of such an aggregated value is calculated, this also needs to be done by accounting for the HH estimator.
+* Set `family(object)` as the default `family` in `init_refmodel()` (i.e., `family = family(object)` in the function signature) and then point out (in the docs) that `get_refmodel.default()` is an alias for `init_refmodel()`. Also adapt the custom reference model example at `?init_refmodel`.
+* Define an internal default `cvfun` (should be possible to cover both, `stanreg`s and `brmsfit`s). Also adapt the custom reference model example at `?init_refmodel`.
+* It should be possible to let `count_terms_chosen()` not count the intercept. This would make the whole package more consistent with regard to the counting of the intercept.
+* Set `nterms_max`'s internal default to `20`, not `19`. This requires adapting the two tests "the message when cutting off the search is thrown correctly".
+* Change the required structure for argument `d_test` of `varsel()`: It should be possible to require a `data.frame` (currently, `d_test` needs to be a `list` with elements `data` `offset`, `weights`, and `y` where `data` contains the predictor data). Otherwise, we could add a new argument (called, e.g., `data_test`,  `data_new`, or even `newdata`) that implements this (and then deprecate argument `d_test`).
+* L1 search: Via `search_control`, wouldn't it make sense to allow users to pass argument `maxiter` to C++ function `coord_descent()`, argument `as_updates_max` to C++ function `glm_elnet()`, and arguments `qa_updates_max`, `normalize`, `lambda`, and `alpha` to R function `glm_elnet()`?
+* Allow users to access the observation-wise predictive performance results (i.e., element `summaries` of `vsel` objects). An idea would be to add a new accessor function `performances_obs()` which simply retrieves element `summaries` of a `vsel` object.
+* Allow users to access the draw-wise and observation-wise predictive performance results.
+* Instead of arguments `ndraws` and `nclusters`, it would be clearer to have new arguments called, e.g., `nprjdraws` and `use_clust` (or `n_draws_prj` and `clust_draws_ref`) which control the number of the resulting projected draws and whether clustering (`TRUE`) or thinning (`FALSE`) should be used, respectively. Analogously, the same holds for `ndraws_pred` and `nclusters_pred`. Also think about prepending prefixes `search_` and `eval_`, i.e., using `search_nprjdraws` and `search_use_clust` (or `search_n_draws_prj` and `search_clust_draws_ref`) for the search and `eval_nprjdraws` and `eval_use_clust` (or `eval_n_draws_prj` and `eval_clust_draws_ref`) for the performance evaluation.
+* Add wrapper functions for `varsel.vsel()` and `cv_varsel.vsel()`. Possible names for such new wrapper functions: `eval_models()` and `eval_models_cv()`. Afterwards, we could also add wrapper functions for `varsel.refmodel()` and `cv_varsel.refmodel()` with `refit_prj = FALSE`. These latter (essentially search-only) wrapper functions could be called `search_models()` and `search_models_cv()`, for example.
+* When introducing other breaking changes (e.g., in a UI overhaul): Do not use `seed = sample.int(.Machine$integer.max, 1)` in the `cv_folds()` call inside of `get_kfold()` anymore.
+* UI overhaul (also search for "overhaul" throughout this whole to-do list):
+    + Replace `refmodel` by `projprep` or some other more general name because in fact, most information from `refmodel` objects concerns the submodels or the way how the projection should be performed, not uniquely the reference model.
+    + Perhaps require the observation weights and offsets to be included as columns in the original dataset (and also in any `newdata` under the same column names). The response can probably be handled analogously: Its column name should be the same in the original dataset and in any `newdata`. This is the **brms** way of handling such information and it is probably more favorable compared to the current (quite complicated) `extract_model_data()` construct. Perhaps we could completely avoid `extract_model_data()` this way. Then, however, we have to keep the following in mind:
+        - For the weights and the offsets: The user would need to specify the weights and the offsets in the formula and **projpred** would need to extract the corresponding data from the original dataset and any `newdata`. For the offsets, this is not a problem since there is the `offset()` function. For the weights, we would have to think about a syntax such as `y | weights(weights_col) ~ predictors` in `brms::brmsformula()`. Functions `model.response()`, `model.weights()`, and `model.offset()` might be helpful, too. If the reference model was fitted with weights and/or offsets, but `newdata` doesn't contain the corresponding columns, we should probably throw an error (like **brms** does).
+        - For the response: If the approach described above is implemented, then we could probably also remove argument `ynew` of `predict.refmodel()`. Then, however, note that we would probably need a call to `.get_standard_y()` in `predict.refmodel()` for processing the response column and that we would probably also need a new argument (logical, length 1) indicating whether to return the prediction (linear predictor or transformed linear predictor) or the LPPD.
+    + Move the `$lpd` output of `proj_linpred()` to its own function (preferably a method for `rstantools::log_lik()`, i.e., `log_lik.projection()`). The same holds for the `!is.null(ynew)` case of `predict.refmodel()`. After that, check whether we can remove `extract_model_data()`'s argument `extract_y`.
+    + Do we really need `predict.refmodel()`? Can't we remove this?
+    + It should be possible to turn `proj_linpred()` and `proj_predict()` into generics with different methods. This would help users and developers to understand which kinds of objects these two functions can be applied to and what is special about each method. Note that the `filter_nterms` code could be moved after the `project()` call, but see also the `project()` to-do item below which explains why it might be beneficial to remove argument `filter_nterms`.
+    + It should be possible to turn `project()` into a generic with different methods, e.g., `project.refmodel()`, `project.default()` (which applies `get_refmodel()` first and hence dispatches to `project.refmodel()`), `project.projection()`, `project.proj_list()`. This would help users and developers to understand which kinds of objects these two functions can be applied to and what is special about each method. For `vsel` objects:
+        - *Either* don't implement a `project.vsel()` method (i.e., for `vsel` objects, rely on `project.default()`) ...
+        - ... *or* implement a `project.vsel()` method (which will do what the current `project()` function does for `vsel` objects), but then add an internal `.project()` function which is called from both `project.vsel()` and `project.refmodel()` (this `.project()` function probably needs several new arguments compared to the current `project()` function, e.g., for accepting the full-data predictor ranking and the suggested size).
+        
+        Going for the first solution (not implementing a `project.vsel()` method) is probably clearest and easiest (if desired, users can write their own `for` loop iterating over the submodels along the full-data predictor ranking and calling `project()` for each of these submodels in turn). In that case, it should also be possible to remove `proj_list` objects and hence also argument `filter_nterms`. If `proj_linpred()` and `proj_predict()` are turned into generics (see to-do item above), then the only major method for these would be `proj_linpred.projection()` and `proj_predict.projection()`, respectively. That way, we wouldn't need unit tests for different input objects in `test_proj_pred.R` (only in `test_project.R`). If we go for the second solution (implementing a `project.vsel()` method which will do what the current `project()` function does for `vsel` objects), we should probably make `proj_list` a formal class and add methods `as.matrix.proj_list()` and `get_refmodel.proj_list()` (then, we could perhaps simplify the docs by using `get_refmodel(object)`---or `get_refmodel(x)` and so on---instead of `<refmodel>`, but that might also be possible analogously with the first solution).
+    + If `varsel()` and `cv_varsel()` are kept (i.e., not split up into several standalone functions as done on branch `workflow`) or renamed, then:
+        - For the argument names of `varsel()` and `cv_varsel()`: Add `search_` prefix and `eval_` prefix (for example, rename `method` to `search_method`).
+        - Change order of `varsel()` and `cv_varsel()` arguments (first all search-related args, then all evaluation-related args).
+        - Rename argument `refit_prj` to `eval_refit_sub` and put it between search and evaluation.
+    + Consistently adapt to the typical Stan convention of having the draws in the first margin of matrices and arrays. New code added for the latent projection already adheres to that convention, but older code needs to be adapted. That also means that augmented-rows matrices (objects of class `augmat`) will have transposed margins.
+* New features from branch `workflow` that haven't been implemented in branch `master` so far:
+    + Functions `varsel()` and `cv_varsel()` have been split up into several standalone functions (but also kept as their own copies, probably for reasons of backward compatibility). We would need to decide whether this is really the UI overhaul we want. It might be beneficial to keep the current UI (i.e., having two large functions `varsel()` and `cv_varsel()`) because users would not need to learn a completely new UI structure and retain several new function names. Actually, we could probably even merge `varsel()` and `cv_varsel()` into a single function which performs a cross-validation by default.
+    + A `summary()` method was added for `project()` output (and the `print()` method for `project()` output prints the output from `summary.projection()`). For this, the performance summaries of the reference model and of the submodels were added in `project()` (and stored in the `project()` output).
+    + Function `diagnostic()` was added. It is used in some `summary()` methods.
+    + New performance statistics `r2` and `crps` were added. The `r2` statistic uses package **bayesboot**. The `crps` statistic uses package **scoringRules**. For the `crps` statistic, it seems to have been necessary to add element `draws` to the summaries of the reference model and of the submodels (search the code from branch `workflow` for `summaries_sub[[k]]$draws`, for example).
+* Tests: Run the MCMC chains in parallel when fitting reference models.
+* Do we need to add input checks for argument `search_terms`, ensuring that it always results in submodels of the full model formula?
+* Do we need to catch `%in%` and `/` operators in formulas? See the [R manual](https://cran.r-project.org/doc/manuals/r-release/R-intro.html#Formulae-for-statistical-models).
+* Do we need to handle `*` between grouping variables of a single group-level term in formulas? Check this for both, **rstanarm** and **brms**.
+* We have `cores = 1` in a `loo::psis()` call and once again `cores = 1` in an `importance_sampling_func()` call (where `importance_sampling_func()` corresponds to either `loo::psis()` or `loo::sis()` at the moment). Does it make sense to allow for parallelization there?
+* In `plot.vsel()`: Is
+    ```{r, eval=FALSE}
+    if (nterms_max < 1) {
+      stop("nterms_max must be at least 1")
+    }
+    ```
+    and
+    ```{r, eval=FALSE}
+    if (max_size == 0) {
+      stop("plot.vsel() cannot be used if there is just the intercept-only ",
+           "submodel.")
+    }
+    ```
+    really necessary? In other words, couldn't we allow plotting the performance of just the intercept-only model?
+    
+    &rarr; Probably, because of ` / min(nterms_max, nb)`. But that could be avoided easily by case-differentiation. Then also adapt the test "invalid `nterms_max` fails".
+* Fix [#402](https://github.com/stan-dev/projpred/issues/402) (currently, we are throwing warnings in the `$ppd()` functions when observation weights are not all equal to `1`).
+* Require **testthat** version >= 3.1.9 and then use the new functions `expect_contains()`, `expect_in()`, `is_snapshot()`, and `is_checking()`.
+* **ggplot2** versions < 3.4.0 (i.e., <= 3.3.6) ignore `linewidth` (even if not an aesthetic, but fixed) with the warning `Warning: Ignoring unknown parameters: linewidth`. That warning is thrown for both `plot.vsel()` (the `geom_linerange()` there) and `plot.cv_proportions()` (the `geom_tile()` there). So think about requiring **ggplot2** >= 3.4.0. (For now, this is probably not necessary because the plot is still produced, even with **ggplot2** versions < 3.4.0, and users are warned by **ggplot2** about the ignored `linewidth`.)
+* Extend the `latent.Rmd` vignette: Add a `cumulative()` example using both, augmented-data and latent projection.
+* Extend the main vignette by a flow chart illustrating the steps that **projpred** performs internally. It probably makes sense to add such a flow chart only after the UI overhaul. Alternatively, we could add a vignette dealing only with the theoretical background of **projpred**. There, such a flow chart could be added, but perhaps it doesn't need to be.
+* See issue [#125](https://github.com/stan-dev/projpred/issues/125): Add vignette for custom reference model (via `init_refmodel()`). In that vignette, perhaps cover a case with a custom `ref_predfun()`.
+* Check if [function grouping](https://devguide.ropensci.org/building.html#function-grouping) in the documentation could make sense for **projpred**.
+* It might make sense to split up the docs for `proj_linpred()` and `proj_predict()` (i.e., the `pred-projection` help topic).
+* Add support for argument `cov` of `brms::gr()` (i.e., support group-level terms such as `(1 | gr(species, cov = A))`), see issue [#319](https://github.com/stan-dev/projpred/issues/319).
+* Tests: Replace `is.atomic(` occurrences by `is.vector([...], "numeric")` and avoid `expect_type()` in the same way (because `is.vector(1L, "numeric")` is `TRUE` but `expect_type(1L, "numeric")` fails).
+* In the custom `refmodel` example in the `?init_refmodel` help, use principal components (but mention that Piironen et al. (2020, DOI: [10.1214/20-EJS1711](https://doi.org/10.1214/20-EJS1711)) use supervised principal components; iterative supervised principal components would go even further).
+* Tests: Consider testing the changes from PR [#394](https://github.com/stan-dev/projpred/pull/394) (i.e., use at least one underscore in the category names).
+* For drawing new group-level effects in reference model predictions, the current pseudorandom number generator (PRNG) seeding approach in `brms:::get_refmodel.brmsfit()` (constant `refprd_seed` for all reference model predictions) is similar to the **rstanarm** approach where a single set of new group-level effects is used for *all* new group levels. For consistency, it might be best to completely revise the drawing of new group-level effects in reference model predictions, so that this is handled by **projpred** (and then always with a fresh `.Random.seed` state at each prediction). In that case, **brms**'s `refprd_seed` can be removed.
+* For the Gaussian family, implement the actual cross-entropy (or at least the cross-entropy which results from dropping terms which would cancel out when calculating the KL divergence) instead of the approximated cross-entropy that is currently implemented for the Gaussian family. Afterwards, the documentation for `project()`'s output element `ce` will have to be adapted.
+* Could [`mgcv::smooth2random()`](https://stat.ethz.ch/R-manual/R-patched/library/mgcv/html/smooth2random.html) be used to avoid usage of `mgcv::gam()` (in `fit_gam_callback()`) and `gamm4::gamm4()` (in `fit_gamm_callback()`) in **projpred**? At least **brms** seems to use it (see [here](https://github.com/paul-buerkner/brms/commit/a70f9760b8a5a611dec2ea37cb21227106bb8204)). Furthermore, [this blog entry](https://fromthebottomoftheheap.net/2021/02/02/random-effects-in-gams/) might also be helpful.
+* See issue [#362](https://github.com/stan-dev/projpred/issues/362).
+* Consider throwing a warning in `init_refmodel()` for numerical inaccuracies in case of extreme linear predictor (`eta`) values; see `refmodel_tester()`'s section "eta".
+* It is probably dangerous to rely on the defaults for user-specified functions. Instead, it is probably better to always specify all arguments to user-specified functions. Still to-do (now that the latent projection has been merged into `master`): `ref_predfun`, `div_minimizer`, `extract_model_data`, `cvfun`, `cvrefbuilder`.
+* Make the KL divergences of *all* candidate models encountered during a forward search accessible (see [this Stan Discourse thread](https://discourse.mc-stan.org/t/very-basic-projection-predictive-variable-selection-question/27917) as well as [#327](https://github.com/stan-dev/projpred/issues/327)).
+* Fix issue [#239](https://github.com/stan-dev/projpred/issues/239). Problem: Even if commenting the `stop()` line in projpred which throws the `Not enough (non-NA) data to do anything meaningful` error, `mgcv:::gam.setup()` still seems to be unable to run through (error: `A term has fewer unique covariate combinations than specified maximum degrees of freedom`). So first, check if this occurs *always* for PSIS-LOO CV for GAMMs. If not, try setting argument `k` of `s()` (which is currently probably not supported, see [this comment](https://github.com/stan-dev/projpred/issues/156#issuecomment-1011221136)). Possibly helpful links: [r-help](https://stat.ethz.ch/pipermail/r-help/2007-October/143569.html) and [Stack Overflow](https://stackoverflow.com/questions/62816900/gams-in-r-fewer-unique-covariate-combinations-than-df).
+* See [#186](https://github.com/stan-dev/projpred/issues/186) (more precisely, [this comment](https://github.com/stan-dev/projpred/issues/186#issuecomment-960763239)): Implement consequent inclusion of offsets at all places, even in submodel fits. This would also make the error
+    ```{r, eval=FALSE}
+    if (!(all(is.na(p_ref$var)) ||
+          refmodel$family$family %in% c("gaussian", "Student_t"))) {
+      stop("For family `", refmodel$family$family, "()`, init_submodl() might ",
+           "have to be adapted, depending on whether family$predvar() is ",
+           "invariant with respect to offsets (this would be OK and does not ",
+           "need an adaptation) or not (this would need an adaptation).")
+    }
+    ```
+    obsolete. Some details are also provided in [this comment](https://github.com/stan-dev/projpred/pull/196#issue-971625907).
+* Tests: Use the `covr` package. Then check the test coverage report and see where the code or the tests might still be improved. Where neither code nor tests may be improved (or where this is not necessary), consider adding `# nocov` or `# nocov start` and `# nocov end` comments, see [here](https://covr.r-lib.org/#exclusion-comments).
+* Use `matrixStats::rowLogSumExps()`, `matrixStats::colLogSumExps()`, and `matrixStats::logSumExp()` wherever possible. These should be faster (perhaps also numerically more stable) than their custom variants implemented in **projpred**.
+* Test argument `d_test` of `varsel()` in case of a "reference model" of class `datafit`.
+* Test argument `offset` of **rstanarm**'s model fitting functions such as `stan_glm()` thoroughly. In particular, **projpred**'s argument `offsetnew` needs to be tested thoroughly if in an **rstanarm** reference model, offsets are provided via argument `offset` (not via an `offset()` term in the formula).
+* Add tests comparing the results from `fit_glm_callback()` to those from `fit_glm_ridge_callback()` (and, in contrast to `test_glm_ridge.R`, use fractional values as response values). Afterwards, check whether global option `projpred.glm_fitter` can be made an "un-hidden" feature (by mentioning that global option in the general package documentation available at `` ?`projpred-package` `` and also in `NEWS.md`). Some preliminary (unfinished) code for the comparison tests can be found in file `comparison_glm_fitters_and_augdat.R`. Currently, these preliminary results show that setting `options(projpred.glm_fitter = "fit_glm_callback")` may be slightly worse than `options(projpred.glm_fitter = "fit_glm_ridge_callback")` (with `regul = 0`) in terms of speed. Furthermore, `fit_glm_callback()` is probably worse than `fit_glm_ridge_callback()` (with `regul = 0`) in terms of memory usage (because the objects returned by `lm()` and `glm()` are probably larger than `subfit`s resulting from `fit_glm_ridge_callback()`). Furthermore, see also [this comment](https://github.com/stan-dev/projpred/issues/149#issuecomment-1833426661) and [this comment](https://github.com/stan-dev/projpred/issues/149#issuecomment-1833471901).
+* Test formulas which contain a dot (`.`).
+* Perhaps add unit tests for a latent projection with the `poisson()` family? On the other hand, this family is already part of the `latent.Rmd` vignette, so it is already kind of tested when `R CMD check` is run.
+* Perhaps add unit tests for a latent projection with the `rstanarm::neg_binomial_2()` family? On the other hand, this family is already part of the `latent.Rmd` vignette, so it is already kind of tested when `R CMD check` is run.
+* Refine the unit tests for `latent_ll_oscale` and `latent_ppd_oscale` by comparing these functions with the globally defined functions.
+* Latent projection (but perhaps also augmented-data projection): Add `family$cats` automatically in case of the `binomial()` family (with a `is.factor(y) || is.character(y) || is.logical(y)` response `y`)?
+* Tests: Take into account that L1 search, `penalty`, and tuning parameters like `regul` can be used for the latent projection.
+* Add unit tests for only-`NA`s returned by `latent_ilink`, `latent_ll_oscale`, and `latent_ppd_oscale`. (The test named "for the gaussian() family, the latent projection is the same as the traditional projection (when setting `dis` appropriately)" could be a starting point for this.)
+* Latent projection: Allow for observation weights other than constantly 1.
+* Allow `stats = "auc"` for the binomial family in case of the latent projection with `resp_oscale = TRUE` and `!is.null(<...$>family$cats)`.
+* Latent projection: There is probably no sensible way to support "reference models" of class `datafit` (at least for the Bernoulli and the cumulative---and the `cumulative_rstanarm`---family) because `datafit`s would require probabilities of zeros and ones, but transforming these to latent space would result in infinite values (Bernoulli family) or not be possible at all without different thresholds or different `dis` values for different observations and possibly truncating the tails of the latent distribution (cumulative---and `cumulative_rstanarm`---family).
+* Augmented-data projection: Implement support for L1 search. For L1 penalization in case of an ordinal family, package [**glmnetcr**](https://CRAN.R-project.org/package=glmnetcr) or [**ordinalNet**](https://CRAN.R-project.org/package=ordinalNet) might be suitable. For L1 penalization in case of a multinomial (`brms::categorical()`) family, package [**glmnet**](https://CRAN.R-project.org/package=glmnet) might be suitable.
+* Augmented-data projection: Support additive models and also additive multilevel models. For additive multinomial (`brms::categorical()`) models, package [**VGAM**](https://CRAN.R-project.org/package=VGAM) might be suitable.
+* Augmented-data projection: Support families `brms::cratio()` (and/or `brms::sratio()`) and `brms::acat()`. For family `brms::cratio()` (and/or `brms::sratio()`), package [**glmnetcr**](https://CRAN.R-project.org/package=glmnetcr) might be suitable. For family `brms::acat()`, package [**brglm2**](https://CRAN.R-project.org/package=brglm2) or [**VGAM**](https://CRAN.R-project.org/package=VGAM) might be suitable. Also support multilevel models and L1 search for these new families. For multilevel `brms::acat()` models, package [**vcrpart**](https://CRAN.R-project.org/package=vcrpart) (function `vcrpart::olmm()`) does not work because it throws `The weights should be constant for subjects`, but perhaps package [**glmmLasso**](https://CRAN.R-project.org/package=glmmLasso) might be suitable.
+* Add support for the `"loglog"` link when using `rstanarm::stan_polr()` for fitting the reference model.
+* Add support for nested random effects (for the traditional---and latent---as well as for the augmented-data projection).
+* Augmented-data projection: There are two occurrences of the comment starting with `# Coerce the random effects into the same format as the output of ranef()`. These two places have the same coercion task and should be generalized by using a common function (that function would still need to be created).
+* Augmented-data projection: Allow for observation weights other than constantly 1. For the submodel fitting, simply multiply the augmented-data weights by the observation weights.
+* Allow offsets for the `brms::categorical()` family.
+* Allow monotonic effects from **brms** (came up in [#469](https://github.com/stan-dev/projpred/issues/469)).
+* Allow distributional models from **brms** (came up in [#469](https://github.com/stan-dev/projpred/issues/469)).
