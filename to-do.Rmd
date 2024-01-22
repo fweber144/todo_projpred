@@ -19,6 +19,7 @@ output: html_document
     + Remove the possibility that the `list` passed to argument `cvfits` of `init_refmodel()` may have a sub-`list` called `fits` containing the reference model fits that should be moved one level up (see PR [#456](https://github.com/stan-dev/projpred/pull/456)).
     + **brms**: Remove the deprecated argument `newdata` of `get_refmodel.brmsfit()`.
     + `as.matrix.projection()`: Remove the possibility of `nm_scheme = "auto"`.
+* Do [this](https://github.com/stan-dev/projpred/issues/489#issuecomment-1887250582).
 * Rename columns `"lower"` and `"upper"` of `summary.vsel()` output to `"q[...]"` and `"q[...]"` where `[...]` refers to the probability corresponding to the lower and upper confidence interval bound, respectively.
 * Round printed predictive performance results (i.e., the printed table `perf_sub` and the printed vector `perf_ref` in `print.vselsummary()`/`print.vsel()` output) in a `stat`- and `type`-specific way.
 * `plot.vsel()`: If `deltas = FALSE`, visualize the uncertainty in the reference model's predictive performance, as done in the Python package **kulprit** (see [here](https://kulprit.readthedocs.io/en/latest/), [here](https://github.com/bambinos/kulprit), and pull request [bambinos/kulprit#47](https://github.com/bambinos/kulprit/pull/47)).
