@@ -110,12 +110,6 @@ output: html_document
                             offsetnew = ~ new_ocol,
                             allow_nonconst_wdraws_prj = TRUE)
     ```
-* Fix subsampled PSIS-LOO CV, see issue [#94](https://github.com/stan-dev/projpred/issues/94). Note that there is [this comment](https://github.com/stan-dev/projpred/blob/7e67eed52cd307954f47cea939a6a595b07e1bfb/R/cv_varsel.R#L789-L793) which gives a hint that **projpred** might want to use the approach by Magnusson et al. (2019). However, for this approach, we might have to implement the following (note that the following list might not be exhaustive and might be even incorrect, as it was written some time ago):
-    1. In `loo_subsample_pps()`: definition of `wcv` via the logarithms of the predictive densities (not via the predictive densities themselves);
-    1. In `loo_subsample_pps()`: sampling *with* replacement;
-    1. In aggregations across the observations: `1 / wcv` instead of `wcv`;
-    1. In aggregations across the observations: usage of the special variance estimator;
-    1. **projpred** probably has to use the HH estimator every time it aggregates over the subsampled PSIS-LOO CV folds (i.e., also in `cv_proportions.ranking()`, for example). And where the SE of such an aggregated value is calculated, this also needs to be done by accounting for the HH estimator.
 * Fix the GitHub issues for additive models (label "additive").
 * Check if custom reference models with a 2-column response (which currently requires the `binomial()` family) work correctly (throughout the whole package, i.e., also in `proj_linpred()` and `proj_predict()`, for example). If they don't and if it is too difficult to fix this, then do not allow custom reference models with a 2-column response (instead, the numbers of successes should be given in a vector (`y`) and the numbers of trials in another vector (`weights`)).
 * Set `family(object)` as the default `family` in `init_refmodel()` (i.e., `family = family(object)` in the function signature) and then point out (in the docs) that `get_refmodel.default()` is an alias for `init_refmodel()`. Also adapt the custom reference model example at `?init_refmodel`.
