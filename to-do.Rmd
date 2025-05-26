@@ -5,7 +5,6 @@ output: html_document
 
 * See the issues on the [GitHub issue tracker](https://github.com/stan-dev/projpred/issues).
 * See `TODO`s in the code.
-* As soon as a version of package **Matrix** > 1.6-4 is out: Search the **projpred** code for `packageVersion("Matrix") >= "1.6-4"` and see if it is possible to replace those occurrences by `packageVersion("Matrix") == "1.6-4"`.
 * From time to time: Search for `do.call` to check whether we might have costly calls of it (i.e., `do.call()` calls with arguments that consist of large objects, e.g., `stanreg`s or `brmsfit`s). In such cases, we should use direct functions calls where possible and otherwise `projpred:::do_call()`. This should speed up the corresponding code. Note that `do_call()` seems to provide a speed-up in case of a few large arguments, but should not be used in case of a large number of arguments (see `?brms::do_call`).
 * Each time a new **lme4** version is out on CRAN, we need to diff **lme4** functions `mkNewReTrms()` and related functions (`predict.merMod()`, for example) between the former **lme4** version and the updated one. If there are changes, we might have to update `repair_re()` correspondingly.
     
