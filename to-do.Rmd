@@ -24,6 +24,8 @@ output: html_document
 * Rename columns `"lower"` and `"upper"` of `summary.vsel()` output to `"q[...]"` and `"q[...]"` where `[...]` refers to the probability corresponding to the lower and upper confidence interval bound, respectively.
 * Round printed predictive performance results (i.e., the printed table `perf_sub` and the printed vector `perf_ref` in `print.vselsummary()`/`print.vsel()` output) in a `stat`- and `type`-specific way.
 * `plot.vsel()`: If `deltas = FALSE`, visualize the uncertainty in the reference model's predictive performance, as done in the Python package **kulprit** (see [here](https://kulprit.readthedocs.io/en/latest/), [here](https://github.com/bambinos/kulprit), and pull request [bambinos/kulprit#47](https://github.com/bambinos/kulprit/pull/47)).
+    
+    &rarr; The new `deltas = "mixed"` option from [#511](https://github.com/stan-dev/projpred/pull/511) offers some kind of workaround, but it might still be desirable to have such a feature (possibly as an optional feature) for the `deltas = FALSE` plot.
 * GitHub pages: Add new item "Applications" to navigation bar and collect applications of **projpred** there (see appendix "Applications of projection predictive inference" in [McLatchie et al. (2023)](https://doi.org/10.48550/arXiv.2306.15581) for a starting point).
 * Add a function implementing a nested CV so that the selection of the submodel size is validated as well, at least when using `suggest_size()`. (Even though in general, users do not rely solely on `suggest_size()` to select a submodel size, they could use such a `suggest_size()`-based nested CV to get a sense of the overfitting induced by the selection of the size, i.e., the amount of over-optimism in the predictive performance estimates.)
     
