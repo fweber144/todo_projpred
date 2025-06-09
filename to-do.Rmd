@@ -19,6 +19,7 @@ output: html_document
     + **brms**: Remove the deprecated argument `newdata` of `get_refmodel.brmsfit()`.
     + `as.matrix.projection()`: Remove the possibility of `nm_scheme = "auto"`.
     + Remove `verbose_from_deprecated_options()` calls and the definitions of `verbose_from_deprecated_options()` and `verbose_from_deprecated_option()`.
+    + Global options `projpred.prll_cv`, `projpred.warn_prj_drawwise`, `projpred.check_conv`, `projpred.prll_prj_trigger`.
 * Do [this](https://github.com/stan-dev/projpred/pull/496#discussion_r1924371629).
 * Do [this](https://github.com/stan-dev/projpred/issues/489#issuecomment-1887250582).
 * Rename columns `"lower"` and `"upper"` of `summary.vsel()` output to `"q[...]"` and `"q[...]"` where `[...]` refers to the probability corresponding to the lower and upper confidence interval bound, respectively.
